@@ -15,9 +15,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import QRCode from 'qrcode.react';
 import { useState } from "react";
 import { Slider } from "../ui/slider";
 import { toast } from "../ui/use-toast";
+
 
 
 const defaultValues = {
@@ -85,7 +87,9 @@ export function PasswordGenerator() {
   const [generatedPassword, setGeneratedPassword] = useState(generatePassword(defaultValues));
 
   return (
-    <Card className="w-full max-w-3xl mx-auto">
+
+    <div className="w-full h-screen flex gap-1 items-center justify-center">
+    <Card className="w-1/2 max-w-3xl mx-auto">
       <CardHeader className="space-y-1">
         <CardTitle>Generate Password</CardTitle>
         <CardDescription>
@@ -177,5 +181,9 @@ export function PasswordGenerator() {
         </form>
       </CardContent>
     </Card>
+    <div id='#qr' className="1/2 border border-e-red-200">
+    <QRCode value={generatedPassword} />
+      </div>
+    </div>
   );
 }
