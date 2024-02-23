@@ -1,8 +1,4 @@
 "use client";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
-import { z } from "zod";
-
 import {
   Card,
   CardContent,
@@ -12,65 +8,53 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { zodResolver } from "@hookform/resolvers/zod";
+import generatePassword from "generate-password";
 import QRCode from "qrcode.react";
 import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "../ui/button";
 import { Slider } from "../ui/slider";
 import { toast } from "../ui/use-toast";
+import ValidatedSwitch from "./validated-switch";
 
 const defaultValues = {
   length: 12,
   uppercase: true,
   lowercase: true,
   numbers: true,
-  special: true,
+  symbols: true,
 };
 
-// Define the schema for the password generator form
-const PasswordSchema = z.object({
-  length: z
-    .number()
-    .min(1, "Password length must be at least 1")
-    .max(128, "Password length must be no more than 128"),
-  uppercase: z.boolean(),
-  lowercase: z.boolean(),
-  numbers: z.boolean(),
-  special: z.boolean(),
-});
-
-const generatePassword = (data: z.infer<typeof PasswordSchema>) => {
-  const upperChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const lowerChars = "abcdefghijklmnopqrstuvwxyz";
-  const numberChars = "0123456789";
-  const specialChars = "!@#$%^&*()_+-=[]{}|;:'\",.<>/?";
-  let characterSet = "";
-
-  if (data.uppercase) characterSet += upperChars;
-  if (data.lowercase) characterSet += lowerChars;
-  if (data.numbers) characterSet += numberChars;
-  if (data.special) characterSet += specialChars;
-
-  let password = "";
-  for (let i = 0; i < data.length; i++) {
-    const randomIndex = Math.floor(Math.random() * characterSet.length);
-    password += characterSet[randomIndex];
-  }
-
-  return password;
-};
-const generateSuccessToast = (password: string) =>
-  toast({
-    title: "Password generated",
-    description:
-      "Your password has been generated and is copied to the clipboard: " +
-      password,
-  });
+export const PasswordSchema = z
+  .object({
+    length: z
+      .number()
+      .min(1, "Password length must be at least 1")
+      .max(128, "Password length must be no more than 128"),
+    uppercase: z.boolean(),
+    lowercase: z.boolean(),
+    numbers: z.boolean(),
+    symbols: z.boolean(),
+  })
+  .refine(
+    (data) => {
+      const { uppercase, lowercase, numbers, symbols } = data;
+      return uppercase || lowercase || numbers || symbols;
+    },
+    { message: "at least one field must be true" }
+  );
 
 const copyToClipboard = (password: string) => {
   navigator.clipboard
     .writeText(password)
     .then(() => {
-      // console.log('Password copied to clipboard!'+password)
+      toast({
+        title: "Password copied to the clipboard",
+        description:
+          "Your password has been copied to the clipboard: " + password,
+      });
     })
     .catch((err) => {
       console.error("Failed to copy:", err);
@@ -84,8 +68,23 @@ export function PasswordGenerator() {
   });
 
   const [generatedPassword, setGeneratedPassword] = useState<string>(
-    generatePassword(defaultValues)
+    generatePassword.generate(defaultValues)
   );
+
+  const handleGenerate = () => {
+    const values = watch();
+    const validationResult = PasswordSchema.safeParse(values);
+    if (validationResult.success) {
+      const password = generatePassword.generate(values);
+      setGeneratedPassword(password);
+      copyToClipboard(password);
+    }
+  };
+
+  const handleSubmit = (e: any) => {
+    e.preventDefault();
+    handleGenerate();
+  };
 
   return (
     <div className="flex justify-center items-center gap-4 w-full px-10">
@@ -98,12 +97,9 @@ export function PasswordGenerator() {
         </CardHeader>
         <CardContent>
           <form
-            onChange={() => {
-              setGeneratedPassword(generatePassword(watch()));
-              copyToClipboard(generatedPassword);
-              generateSuccessToast(generatedPassword);
-            }}
+            onChange={handleGenerate}
             className="space-y-4"
+            onSubmit={handleSubmit}
           >
             <div className="space-y-2">
               <Label htmlFor="password">Your Password</Label>
@@ -126,69 +122,38 @@ export function PasswordGenerator() {
                       min={1}
                       max={128}
                       step={1}
-                      onValueChange={(values) => setValue("length", values[0])} // Assuming Slider calls onValueChange with the new value
-                      className="w-full" // Adjust your slider's width as needed
+                      onValueChange={(values) => setValue("length", values[0])}
+                      className="w-full"
                     />
                   )}
                 />
               </div>
-              <Label htmlFor="uppercase">Uppercase</Label>
-              <Controller
+              <ValidatedSwitch
                 name="uppercase"
                 control={control}
-                render={({ field }) => (
-                  <Switch
-                    id="uppercase"
-                    checked={field.value}
-                    onCheckedChange={(checked) =>
-                      setValue("uppercase", checked)
-                    }
-                  />
-                )}
+                watch={watch}
+                setValue={setValue}
               />
-
-              <Label htmlFor="lowercase">Lowercase</Label>
-              <Controller
+              <ValidatedSwitch
                 name="lowercase"
+                watch={watch}
                 control={control}
-                render={({ field }) => (
-                  <Switch
-                    id="lowercase"
-                    checked={field.value}
-                    onCheckedChange={(checked) =>
-                      setValue("lowercase", checked)
-                    }
-                  />
-                )}
+                setValue={setValue}
               />
-
-              <Label htmlFor="numbers">Numbers</Label>
-              <Controller
+              <ValidatedSwitch
                 name="numbers"
+                watch={watch}
                 control={control}
-                render={({ field }) => (
-                  <Switch
-                    id="numbers"
-                    checked={field.value}
-                    onCheckedChange={(checked) => setValue("numbers", checked)}
-                  />
-                )}
+                setValue={setValue}
               />
-
-              <Label htmlFor="special">Special Characters</Label>
-              <Controller
-                name="special"
+              <ValidatedSwitch
+                name="symbols"
+                watch={watch}
                 control={control}
-                render={({ field }) => (
-                  <Switch
-                    id="special"
-                    checked={field.value}
-                    onCheckedChange={(checked) => setValue("special", checked)}
-                  />
-                )}
+                setValue={setValue}
               />
             </div>
-            {/* <Button type="submit">Generate Password</Button> */}
+            <Button type="submit">Generate new Password</Button>
           </form>
         </CardContent>
       </Card>
